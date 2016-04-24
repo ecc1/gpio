@@ -6,12 +6,9 @@ import (
 	"os"
 )
 
-const (
-	gpioDir = "/sys/class/gpio"
-)
-
 type InputPin interface {
 	Read() (bool, error)
+	Wait() error
 }
 
 type OutputPin interface {
@@ -19,8 +16,9 @@ type OutputPin interface {
 }
 
 type Pin struct {
-	dir   string
-	value string
+	number int
+	dir    string
+	value  string
 }
 
 func Input(pinNumber int, edge string, activeLow bool) (InputPin, error) {
@@ -66,6 +64,7 @@ func directoryExists(path string) bool {
 }
 
 func pinDirectory(pinNumber int) (dir string, err error) {
+	const gpioDir = "/sys/class/gpio"
 	dir = fmt.Sprintf("%s/gpio%d", gpioDir, pinNumber)
 	if !directoryExists(dir) {
 		err = writeFile(fmt.Sprintf("%s/export", gpioDir), fmt.Sprintf("%d", pinNumber))
@@ -92,7 +91,7 @@ func newPin(pinNumber int, activeLow bool) (*Pin, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Pin{dir: dir, value: value}, nil
+	return &Pin{number: pinNumber, dir: dir, value: value}, nil
 }
 
 func readFile(file string) (string, error) {
@@ -105,7 +104,6 @@ func readBoolFile(file string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	fmt.Printf("read(%s) returned [%v]\n", file, v) //XXX
 	// compare without trailing '\n'
 	s := v[:len(v)-1]
 	switch s {
@@ -127,7 +125,6 @@ func writeFile(file string, contents string) error {
 }
 
 func writeBoolFile(file string, value bool) error {
-	// XXX do we need newlines?
 	if value {
 		return writeFile(file, "1")
 	} else {
