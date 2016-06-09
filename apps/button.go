@@ -18,7 +18,7 @@ func main() {
 			log.Fatal(err)
 		}
 		if b {
-			log.Printf("button pressed\n")
+			log.Printf("button pressed")
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
