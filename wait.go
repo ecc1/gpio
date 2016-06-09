@@ -6,8 +6,6 @@ import (
 	"syscall"
 )
 
-var buf = make([]byte, 4)
-
 func (pin *Pin) Wait() error {
 	f, err := os.Open(pin.value)
 	if err != nil {
@@ -18,7 +16,8 @@ func (pin *Pin) Wait() error {
 	nfds := int(fd) + 1
 	var eset syscall.FdSet
 	eset.Bits[fd/64] = 1 << (fd % 64)
-	f.Read(buf) // prevent Select from returning immediately
+	var buf [4]byte
+	f.Read(buf[:]) // prevent Select from returning immediately
 	n, err := syscall.Select(nfds, nil, nil, &eset, nil)
 	if err != nil {
 		return err
