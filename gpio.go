@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 )
 
 type InputPin interface {
 	Read() (bool, error)
-	Wait() error
+	Wait(time.Duration) error
 }
 
 type OutputPin interface {
