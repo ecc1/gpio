@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"time"
 )
 
@@ -27,11 +28,11 @@ func Input(pinNumber int, edge string, activeLow bool) (InputPin, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = writeFile(fmt.Sprintf("%s/direction", pin.dir), "in")
+	err = writeFile(path.Join(pin.dir, "direction"), "in")
 	if err != nil {
 		return nil, err
 	}
-	err = writeFile(fmt.Sprintf("%s/edge", pin.dir), edge)
+	err = writeFile(path.Join(pin.dir, "edge"), edge)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func Output(pinNumber int, activeLow bool) (OutputPin, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = writeFile(fmt.Sprintf("%s/direction", pin.dir), "out")
+	err = writeFile(path.Join(pin.dir, "direction"), "out")
 	if err != nil {
 		return nil, err
 	}
@@ -54,29 +55,47 @@ func (pin *Pin) Read() (bool, error) {
 	return readBoolFile(pin.value)
 }
 
-func fileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular()
+func fileExists(path string) (bool, error) {
+	return existsWithPredicate(path, func(info os.FileInfo) bool {
+		return info.Mode().IsRegular()
+	})
 }
 
-func directoryExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsDir()
+func directoryExists(path string) (bool, error) {
+	return existsWithPredicate(path, func(info os.FileInfo) bool {
+		return info.Mode().IsDir()
+	})
 }
 
-func pinDirectory(pinNumber int) (dir string, err error) {
-	const gpioDir = "/sys/class/gpio"
-	dir = fmt.Sprintf("%s/gpio%d", gpioDir, pinNumber)
-	if !directoryExists(dir) {
-		err = writeFile(fmt.Sprintf("%s/export", gpioDir), fmt.Sprintf("%d", pinNumber))
-		if err != nil {
-			return
+func existsWithPredicate(path string, predicate func(os.FileInfo) bool) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
 		}
+		return false, err
 	}
-	if !directoryExists(dir) {
-		err = fmt.Errorf("failed to export GPIO directory %s", dir)
+	return predicate(info), nil
+}
+
+func pinDirectory(pinNumber int) (string, error) {
+	const gpioDir = "/sys/class/gpio/"
+	dir := path.Join(gpioDir, fmt.Sprintf("gpio%d/", pinNumber))
+	tried := false
+	for {
+		exists, err := directoryExists(dir)
+		if err != nil || exists {
+			return dir, err
+		}
+		if tried {
+			return dir, fmt.Errorf("failed to export GPIO directory %s", dir)
+		}
+		err = writeFile(path.Join(gpioDir, "export"), fmt.Sprintf("%d", pinNumber))
+		if err != nil {
+			return dir, err
+		}
+		tried = true
 	}
-	return
 }
 
 func newPin(pinNumber int, activeLow bool) (*Pin, error) {
@@ -84,11 +103,12 @@ func newPin(pinNumber int, activeLow bool) (*Pin, error) {
 	if err != nil {
 		return nil, err
 	}
-	value := fmt.Sprintf("%s/value", dir)
-	if !fileExists(value) {
-		return nil, fmt.Errorf("%s does not exist", value)
+	value := path.Join(dir, "value")
+	exists, err := fileExists(value)
+	if err != nil || !exists {
+		return nil, err
 	}
-	err = writeBoolFile(fmt.Sprintf("%s/active_low", dir), activeLow)
+	err = writeBoolFile(path.Join(dir, "active_low"), activeLow)
 	if err != nil {
 		return nil, err
 	}
