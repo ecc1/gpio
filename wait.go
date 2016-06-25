@@ -2,9 +2,9 @@ package gpio
 
 import (
 	"fmt"
-	"os"
-	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 type TimeoutError struct {
@@ -16,25 +16,22 @@ func (t TimeoutError) Error() string {
 	return fmt.Sprintf("gpio%d.Wait timeout after %v", t.pin.number, t.timeout)
 }
 
+// This must be long enough to read the entire value file (0 or 1 and newline).
+var valueBuf = make([]byte, 4)
+
 func (pin *Pin) Wait(timeout time.Duration) error {
-	f, err := os.Open(pin.value)
+	fd, err := unix.Open(pin.value, unix.O_NONBLOCK|unix.O_RDONLY, 0)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	fd := f.Fd()
-	nfds := int(fd) + 1
-	var eset syscall.FdSet
-	eset.Bits[fd/64] = 1 << (fd % 64)
-	t := (*syscall.Timeval)(nil)
-	ns := timeout.Nanoseconds()
-	if ns != -1 {
-		tv := syscall.NsecToTimeval(ns)
-		t = &tv
+	defer unix.Close(fd)
+	_, err = unix.Read(fd, valueBuf)
+	// Return immediately if the value is already active.
+	if err != nil || valueBuf[0] == '1' {
+		return err
 	}
-	var buf [4]byte
-	f.Read(buf[:]) // prevent Select from returning immediately
-	n, err := syscall.Select(nfds, nil, nil, &eset, t)
+	fds := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLPRI}}
+	n, err := unix.Poll(fds, int(timeout/time.Millisecond))
 	if err != nil {
 		return err
 	}
