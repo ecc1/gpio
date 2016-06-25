@@ -95,6 +95,8 @@ func pinDirectory(pinNumber int) (string, error) {
 			return dir, err
 		}
 		tried = true
+		// Give udev rules a chance to execute on newly-created gpio%d directory.
+		time.Sleep(time.Second)
 	}
 }
 
