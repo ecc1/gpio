@@ -1,0 +1,2 @@
+ACTION=="add", KERNEL=="gpiochip*",, PROGRAM="/bin/sh -c 'chown root:gpio /sys/class/gpio/export /sys/class/gpio/unexport && chmod 0664 /sys/class/gpio/export /sys/class/gpio/unexport'"
+ACTION=="add", KERNEL=="gpio*", PROGRAM="/bin/sh -c 'chown root:gpio /sys%p/active_low /sys%p/direction /sys%p/edge /sys%p/value && chmod 0664 /sys%p/active_low /sys%p/direction /sys%p/edge /sys%p/value'"
