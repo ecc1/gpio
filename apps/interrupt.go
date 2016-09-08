@@ -17,11 +17,11 @@ func main() {
 		if err != nil {
 			_, isTimeout := err.(gpio.TimeoutError)
 			if isTimeout {
-				log.Println(err)
+				log.Print(err)
 				continue
 			}
 			log.Fatal(err)
 		}
-		log.Printf("interrupt")
+		log.Print("interrupt")
 	}
 }
