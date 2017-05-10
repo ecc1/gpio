@@ -8,21 +8,26 @@ import (
 	"time"
 )
 
+// InputPin is the interface satisfied by GPIO input pins.
 type InputPin interface {
 	Read() (bool, error)
 	Wait(time.Duration) error
 }
 
+// OutputPin is the interface satisfied by GPIO output pins.
 type OutputPin interface {
 	Write(bool) error
 }
 
+// Pin represents a GPIO pin.
 type Pin struct {
 	number int
 	dir    string
 	value  string
 }
 
+// Input initializes a GPIO input pin with the given pin number.
+// The edge parameter must be "rising", "falling", or "both".
 func Input(pinNumber int, edge string, activeLow bool) (InputPin, error) {
 	pin, err := newPin(pinNumber, activeLow)
 	if err != nil {
@@ -39,6 +44,7 @@ func Input(pinNumber int, edge string, activeLow bool) (InputPin, error) {
 	return pin, nil
 }
 
+// Output initializes a GPIO output pin with the given pin number.
 func Output(pinNumber int, activeLow bool) (OutputPin, error) {
 	pin, err := newPin(pinNumber, activeLow)
 	if err != nil {
@@ -148,9 +154,12 @@ func writeFile(file string, contents string) error {
 }
 
 func writeBoolFile(file string, value bool) error {
-	if value {
-		return writeFile(file, "1")
-	} else {
-		return writeFile(file, "0")
+	var b string
+	switch value {
+	case true:
+		b = "1"
+	case false:
+		b = "0"
 	}
+	return writeFile(file, b)
 }

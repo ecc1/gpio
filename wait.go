@@ -7,6 +7,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// TimeoutError indicates that a Wait operation on a GPIO input pin timed out.
 type TimeoutError struct {
 	pin     *Pin
 	timeout time.Duration
@@ -19,12 +20,13 @@ func (t TimeoutError) Error() string {
 // This must be long enough to read the entire value file (0 or 1 and newline).
 var valueBuf = make([]byte, 4)
 
+// Wait waits with the given timeout for a GPIO input pin to become active.
 func (pin *Pin) Wait(timeout time.Duration) error {
 	fd, err := unix.Open(pin.value, unix.O_NONBLOCK|unix.O_RDONLY, 0)
 	if err != nil {
 		return err
 	}
-	defer unix.Close(fd)
+	defer func() { _ = unix.Close(fd) }()
 	_, err = unix.Read(fd, valueBuf)
 	// Return immediately if the value is already active.
 	if err != nil || valueBuf[0] == '1' {
