@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	g, err := gpio.Input(14, "rising", true)
+	g, err := gpio.Interrupt(14, true, "rising")
 	if err != nil {
 		log.Fatal(err)
 	}

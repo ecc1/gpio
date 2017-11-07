@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	g, err := gpio.Input(14, "none", true)
+	g, err := gpio.Input(14, true)
 	if err != nil {
 		log.Fatal(err)
 	}
