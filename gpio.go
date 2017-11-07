@@ -8,53 +8,69 @@ import (
 	"time"
 )
 
-// InputPin is the interface satisfied by GPIO input pins.
-type InputPin interface {
-	Read() (bool, error)
-	Wait(time.Duration) error
-}
+type (
+	// InputPin is the interface satisfied by GPIO input pins.
+	InputPin interface {
+		Read() (bool, error)
+	}
 
-// OutputPin is the interface satisfied by GPIO output pins.
-type OutputPin interface {
-	Write(bool) error
-}
+	// InterruptPin is the interface satisfied by GPIO interrupt pins.
+	InterruptPin interface {
+		InputPin
+		Wait(time.Duration) error
+	}
 
-// Pin represents a GPIO pin.
-type Pin struct {
-	number int
-	dir    string
-	value  string
-}
+	// OutputPin is the interface satisfied by GPIO output pins.
+	OutputPin interface {
+		Write(bool) error
+	}
+
+	// Pin represents a GPIO pin.
+	Pin struct {
+		number int
+		dir    string
+		value  string
+	}
+)
 
 // Input initializes a GPIO input pin with the given pin number.
+func Input(pinNumber int, activeLow bool) (InputPin, error) {
+	pin, err := newPin(pinNumber, activeLow)
+	if err != nil {
+		return nil, err
+	}
+	err = writeFile(path.Join(pin.dir, "direction"), "in")
+	return pin, err
+}
+
+// Interrupt initializes a GPIO interrupt pin with the given pin number.
 // The edge parameter must be "rising", "falling", or "both".
-func Input(pinNumber int, edge string, activeLow bool) (InputPin, error) {
+func Interrupt(pinNumber int, activeLow bool, edge string) (InterruptPin, error) {
 	pin, err := newPin(pinNumber, activeLow)
 	if err != nil {
 		return nil, err
 	}
 	err = writeFile(path.Join(pin.dir, "direction"), "in")
 	if err != nil {
-		return nil, err
+		return pin, err
 	}
 	err = writeFile(path.Join(pin.dir, "edge"), edge)
-	if err != nil {
-		return nil, err
-	}
-	return pin, nil
+	return pin, err
 }
 
-// Output initializes a GPIO output pin with the given pin number.
-func Output(pinNumber int, activeLow bool) (OutputPin, error) {
+var gpioDirection = map[bool]string{true: "high", false: "low"}
+
+// Output initializes a GPIO output pin with the given pin number
+// and initial logical value.
+func Output(pinNumber int, activeLow bool, initialValue bool) (OutputPin, error) {
 	pin, err := newPin(pinNumber, activeLow)
 	if err != nil {
 		return nil, err
 	}
-	err = writeFile(path.Join(pin.dir, "direction"), "out")
-	if err != nil {
-		return nil, err
-	}
-	return pin, nil
+	// Set direction based on initial *logical* value.
+	direction := gpioDirection[initialValue != activeLow]
+	err = writeFile(path.Join(pin.dir, "direction"), direction)
+	return pin, err
 }
 
 func (pin *Pin) Read() (bool, error) {
